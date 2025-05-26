@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Summarizer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8">Text Summarizer</h1>
+        
+        <!-- Tabs for different input methods -->
+        <div class="flex mb-4 border-b">
+            <button type="button" onclick="switchTab('text-input')" class="px-4 py-2 font-medium {% if active_tab != 'file-upload' %}border-b-2 border-blue-500 text-blue-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+                Text Input
+            </button>
+            <button type="button" onclick="switchTab('file-upload')" class="px-4 py-2 font-medium {% if active_tab == 'file-upload' %}border-b-2 border-blue-500 text-blue-600{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+                File Upload
+            </button>
+        </div>
+
+        <!-- Text Input Tab -->
+        <div id="text-input-tab" class="{% if active_tab == 'file-upload' %}hidden{% endif %}">
+            <form method="POST" action="/summarize" class="max-w-2xl mx-auto">
+            <div class="mb-8 relative">
+                <label for="text" class="block text-sm font-medium text-gray-700 mb-2">Enter Text</label>
+                <textarea name="text" id="text" rows="10" class="w-full border rounded p-2 pr-10" placeholder="Enter your text here...">{% if submitted_text %}{{ submitted_text }}{% endif %}</textarea>
+                <button type="button" onclick="toggleListening()" class="absolute right-2 top-9 p-2 bg-gray-200 rounded-full hover:bg-gray-300 transition-colors" title="Click to start/stop voice input">
+                    <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-1v-2.07z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="mb-4">
+                <label for="sentences" class="block text-sm font-medium text-gray-700 mb-2">Number of Sentences</label>
+                <select name="sentences" id="sentences" class="border rounded px-2 py-1">
+                    <option value="3" {% if selected_sentences == 3 %}selected{% endif %}>3</option>
+                    <option value="5" {% if selected_sentences == 5 %}selected{% endif %}>5</option>
+                    <option value="7" {% if selected_sentences == 7 %}selected{% endif %}>7</option>
+                    <option value="10" {% if selected_sentences == 10 %}selected{% endif %}>10</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Summarize</button>
+        </form>
+        
+        {% if summary %}
+            </form>
+        </div>
+
+        <!-- File Upload Tab -->
+        <div id="file-upload-tab" class="{% if active_tab != 'file-upload' %}hidden{% endif %} max-w-2xl mx-auto">
+            <form method="POST" action="/summarize_file" enctype="multipart/form-data" class="space-y-4">
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <div class="flex flex-col items-center justify-center space-y-2">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <div class="flex text-sm text-gray-600">
+                            <label for="file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
+                                <span>Upload a file</span>
+                                <input id="file-upload" name="file" type="file" class="sr-only" accept=".txt,.doc,.docx" onchange="updateFileName(this)">
+                            </label>
+                            <p class="pl-1">or drag and drop</p>
+                        </div>
+                        <p class="text-xs text-gray-500" id="file-name">
+                            TXT, DOC, or DOCX (max 16MB)
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="sentences-file" class="block text-sm font-medium text-gray-700 mb-2">Number of Sentences</label>
+                    <select name="sentences" id="sentences-file" class="border rounded px-2 py-1">
+                        <option value="3" {% if selected_sentences == 3 %}selected{% endif %}>3</option>
+                        <option value="5" {% if selected_sentences == 5 %}selected{% endif %}>5</option>
+                        <option value="7" {% if selected_sentences == 7 %}selected{% endif %}>7</option>
+                        <option value="10" {% if selected_sentences == 10 %}selected{% endif %}>10</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Summarize File</button>
+            </form>
+        </div>
+
+        <div class="mt-8 max-w-2xl mx-auto">
+            <h2 class="text-xl font-semibold mb-4">Summary</h2>
+            <div class="bg-white p-4 rounded border">
+                <p id="summary">{{ summary }}</p>
+            </div>
+            
+            <!-- Download Button -->
+            {% if summary %}
+            <!-- Statistics Panel -->
+            <div id="stats" class="mt-6 p-4 bg-gray-50 border rounded-lg">
+                <h3 class="font-semibold mb-2">Summary Statistics</h3>
+                <ul class="text-sm space-y-1">
+                    <li>Word Count: <span id="word-count">0</span></li>
+                    <li>Reading Time: <span id="reading-time">0</span> min</li>
+                    <li>Top Keywords: <span id="keywords" class="font-medium">-</span></li>
+                </ul>
+            </div>
+
+            <!-- Download Button -->
+            <div class="mt-6">
+                <button onclick="downloadDocx()" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Download Summary (DOCX)
+                </button>
+            </div>
+            
+            <!-- Listen Button -->
+            <button onclick="speakSummary()" class="mt-4 bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 flex items-center">
+                <svg class="w-5 h-5 text-white mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+                </svg>
+                Listen to Summary
+            </button>
+            
+            <!-- Initialize stats when summary is available -->
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const summary = document.getElementById('summary').textContent.trim();
+                    if (summary) {
+                        updateStats(summary);
+                    }
+                });
+            </script>
+            
+            <!-- Pass keywords from backend to JavaScript -->
+            <div id="backend-keywords" data-keywords='{{ keywords|tojson|safe if keywords else "[]" }}' style="display: none;"></div>
+            <script>
+                // Get keywords from the hidden div
+                document.addEventListener('DOMContentLoaded', function() {
+                    const keywordsElement = document.getElementById('keywords');
+                    const backendKeywordsDiv = document.getElementById('backend-keywords');
+                    
+                    if (keywordsElement && backendKeywordsDiv) {
+                        try {
+                            const keywords = JSON.parse(backendKeywordsDiv.getAttribute('data-keywords'));
+                            if (Array.isArray(keywords) && keywords.length > 0) {
+                                keywordsElement.textContent = keywords.join(', ');
+                            } else {
+                                keywordsElement.textContent = 'No significant keywords found';
+                            }
+                        } catch (e) {
+                            console.error('Error parsing keywords:', e);
+                            keywordsElement.textContent = 'No significant keywords found';
+                        }
+                    }
+                });
+            </script>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        {% if error %}
+        <div class="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded max-w-2xl mx-auto">
+            <p>{{ error }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+    // Tab switching functionality
+    function switchTab(tabName) {
+        // Get all tab buttons and content areas
+        const textTabBtn = document.querySelector('button[onclick="switchTab(\'text-input\')"]');
+        const fileTabBtn = document.querySelector('button[onclick="switchTab(\'file-upload\')"]');
+        const textTab = document.getElementById('text-input-tab');
+        const fileTab = document.getElementById('file-upload-tab');
+        
+        if (tabName === 'text-input') {
+            // Show text input tab
+            textTab.classList.remove('hidden');
+            fileTab.classList.add('hidden');
+            
+            // Update tab styles
+            textTabBtn.classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+            textTabBtn.classList.remove('text-gray-500', 'hover:text-gray-700');
+            
+            fileTabBtn.classList.remove('border-b-2', 'border-blue-500', 'text-blue-600');
+            fileTabBtn.classList.add('text-gray-500', 'hover:text-gray-700');
+            
+            window.location.hash = '';
+        } else {
+            // Show file upload tab
+            textTab.classList.add('hidden');
+            fileTab.classList.remove('hidden');
+            
+            // Update tab styles
+            fileTabBtn.classList.add('border-b-2', 'border-blue-500', 'text-blue-600');
+            fileTabBtn.classList.remove('text-gray-500', 'hover:text-gray-700');
+            
+            textTabBtn.classList.remove('border-b-2', 'border-blue-500', 'text-blue-600');
+            textTabBtn.classList.add('text-gray-500', 'hover:text-gray-700');
+            
+            window.location.hash = 'file-upload';
+        }
+    }
+    
+    // Update file name display
+    function updateFileName(input) {
+        const fileName = input.files[0] ? input.files[0].name : 'No file selected';
+        document.getElementById('file-name').textContent = fileName;
+    }
+    
+    // Check URL hash on page load and handle tab switching
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set initial tab based on URL hash or default to text-input
+        const initialTab = window.location.hash === '#file-upload' ? 'file-upload' : 'text-input';
+        switchTab(initialTab);
+        
+        // Handle browser back/forward button navigation
+        window.addEventListener('popstate', function() {
+            const tab = window.location.hash === '#file-upload' ? 'file-upload' : 'text-input';
+            switchTab(tab);
+        });
+        
+        // Enable drag and drop
+        const dropZone = document.querySelector('.border-dashed');
+        if (dropZone) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+            
+            function highlight() {
+                dropZone.classList.add('border-blue-500', 'bg-blue-50');
+            }
+            
+            function unhighlight() {
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+            }
+            
+            dropZone.addEventListener('drop', handleDrop, false);
+            
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length) {
+                    const input = document.getElementById('file-upload');
+                    input.files = files;
+                    updateFileName(input);
+                }
+            }
+        }
+    });
+    let recognition = null;
+    let isListening = false;
+    
+    function toggleListening() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) return alert("Speech Recognition not supported in this browser.");
+        
+        const button = document.querySelector('button[onclick="toggleListening()"]');
+        
+        if (!isListening) {
+            // Start listening
+            if (recognition) {
+                recognition.stop();
+            }
+            
+            recognition = new SpeechRecognition();
+            recognition.continuous = true; // Keep listening even when user stops speaking
+            recognition.interimResults = false; // We'll only get final results
+            recognition.lang = 'en-US';
+            
+            recognition.onstart = function() {
+                isListening = true;
+                button.classList.remove('bg-gray-200', 'text-gray-600');
+                button.classList.add('bg-red-500', 'text-white');
+                button.innerHTML = `
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>`;
+            };
+            
+            recognition.onend = function() {
+                // Don't update UI if we're still supposed to be listening
+                if (isListening) {
+                    // Restart recognition if it ended unexpectedly
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.error('Error restarting recognition:', e);
+                        stopListening();
+                    }
+                }
+            };
+            
+            recognition.onresult = async function(event) {
+                const transcript = event.results[event.results.length - 1][0].transcript;
+                const textarea = document.getElementById('text');
+                
+                try {
+                    // Send to backend for processing
+                    const response = await fetch('/process_voice_input', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ text: transcript })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    // Add a space if there's existing text
+                    const prefix = textarea.value ? ' ' : '';
+                    textarea.value += prefix + data.processed_text;
+                    
+                } catch (error) {
+                    console.error('Error processing voice input:', error);
+                    // Fallback to original transcript if processing fails
+                    const prefix = textarea.value ? ' ' : '';
+                    textarea.value += prefix + transcript;
+                }
+                
+                // Auto-scroll to bottom of textarea
+                textarea.scrollTop = textarea.scrollHeight;
+            };
+            
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error', event.error);
+                if (event.error === 'no-speech' || event.error === 'audio-capture') {
+                    // These errors are common and don't need to be shown to the user
+                    return;
+                }
+                alert('Error: ' + event.error);
+                stopListening();
+            };
+            
+            try {
+                recognition.start();
+            } catch (e) {
+                console.error('Error starting recognition:', e);
+                alert('Error starting voice recognition. Please try again.');
+                stopListening();
+            }
+        } else {
+            // Stop listening
+            stopListening();
+        }
+    }
+    
+    function stopListening() {
+        if (recognition) {
+            isListening = false;
+            try {
+                recognition.stop();
+            } catch (e) {
+                console.error('Error stopping recognition:', e);
+            }
+            
+            const button = document.querySelector('button[onclick="toggleListening()"]');
+            button.classList.remove('bg-red-500', 'text-white');
+            button.classList.add('bg-gray-200', 'text-gray-600');
+            button.innerHTML = `
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-1v-2.07z" clip-rule="evenodd"/>
+                </svg>`;
+        }
+    }
+    
+    // Global variables for speech synthesis
+    let currentUtterance = null;
+    let currentText = "";
+    let currentSentences = [];
+    let currentIndex = 0;
+    let isPaused = false;
+    let speakButton = null;
+    
+    function speakSummary() {
+        const summaryElement = document.getElementById('summary');
+        speakButton = document.querySelector('button[onclick="speakSummary()"]');
+        
+        if (!summaryElement) {
+            alert('No summary element found');
+            return;
+        }
+        
+        const summary = summaryElement.textContent.trim();
+        if (!summary) {
+            alert('No summary to read!');
+            return;
+        }
+        
+        // If already speaking, pause the speech
+        if (window.speechSynthesis.speaking && !isPaused) {
+            window.speechSynthesis.pause();
+            isPaused = true;
+            speakButton.innerHTML = `
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+                </svg>
+                Resume`;
+            return;
+        }
+        
+        // If paused, resume from where we left off
+        if (isPaused) {
+            window.speechSynthesis.resume();
+            isPaused = false;
+            speakButton.innerHTML = `
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                Pause`;
+            return;
+        }
+        
+        // If starting new speech
+        window.speechSynthesis.cancel(); // Stop any current speech
+        currentText = summary;
+        currentSentences = summary.match(/[^.!?]+[.!?]+/g) || [summary];
+        currentIndex = 0;
+        isPaused = false;
+        
+        // Update button to show pause state
+        speakButton.innerHTML = `
+            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            Pause`;
+            
+        // Start speaking the first chunk
+        speakNextChunk();
+    }
+    
+    function speakNextChunk() {
+        const speakButton = document.querySelector('button[onclick="speakSummary()"]');
+        
+        if (currentIndex >= currentSentences.length) {
+            // All chunks have been spoken
+            speakButton.innerHTML = `
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+                </svg>
+                Listen Again`;
+            return;
+        }
+        
+        const text = currentSentences[currentIndex].trim();
+        if (!text) {
+            currentIndex++;
+            return speakNextChunk();
+        }
+        
+        currentUtterance = new SpeechSynthesisUtterance(text);
+        currentUtterance.lang = 'en-US';
+        currentUtterance.rate = 1;
+        
+        currentUtterance.onend = function() {
+            if (!isPaused) {
+                currentIndex++;
+                speakNextChunk();
+            } else if (currentIndex >= currentSentences.length - 1) {
+                // All chunks have been spoken
+                speakButton.innerHTML = `
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+                    </svg>
+                    Listen Again`;
+            }
+        };
+        
+        // Handle speech synthesis errors
+        currentUtterance.onerror = function(event) {
+            console.error('SpeechSynthesis error:', event);
+            if (!isPaused) {
+                currentIndex++;
+                speakNextChunk();
+            } else if (currentIndex >= currentSentences.length - 1) {
+                // All chunks have been spoken
+                speakButton.innerHTML = `
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+                    </svg>
+                    Listen Again`;
+            }
+        };
+        
+        try {
+            window.speechSynthesis.speak(currentUtterance);
+        } catch (e) {
+            console.error('Error speaking:', e);
+            alert('Error: Could not read the summary. Please try again.');
+            speakButton.innerHTML = `
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+                </svg>
+                Try Again`;
+        }
+    }
+    // Function to update statistics panel
+    function updateStats(summary) {
+        if (!summary) return;
+        
+        // Calculate word count
+        const wordCount = summary.split(/\s+/).filter(w => w).length;
+        document.getElementById('word-count').textContent = wordCount;
+        
+        // Calculate reading time (200 words per minute, minimum 1 minute)
+        const readingTime = Math.max(1, Math.ceil(wordCount / 200));
+        document.getElementById('reading-time').textContent = readingTime;
+        
+        // Keywords are now handled by the backend and updated separately
+    }
+    
+    // Export function for DOCX
+    async function downloadDocx() {
+        let button, originalText;
+        
+        try {
+            const summary = document.getElementById('summary').textContent.trim();
+            if (!summary) {
+                alert('No summary available to download');
+                return;
+            }
+            
+            // Show loading state
+            button = document.querySelector('button[onclick="downloadDocx()"]');
+            originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<span>Downloading...</span>';
+            
+            const response = await fetch('/export_docx', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                },
+                body: JSON.stringify({ text: summary })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to generate document');
+            }
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'summary.docx';
+            document.body.appendChild(a);
+            a.click();
+            
+            // Change button to show success state
+            button.innerHTML = '<span>Downloaded ✓</span>';
+            button.classList.add('bg-green-600', 'hover:bg-green-700');
+            button.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+            
+            // Clean up
+            setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+                a.remove();
+            }, 100);
+            
+        } catch (error) {
+            console.error('Error downloading document:', error);
+            alert('Error: ' + (error.message || 'Failed to download document'));
+            
+            // Restore original button state on error
+            if (button && originalText) {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        }
+        
+        // Reset button state after 2 seconds if not already reset
+        if (button) {
+            setTimeout(() => {
+                if (button.innerHTML.includes('Downloaded')) {
+                    button.innerHTML = originalText;
+                    button.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    button.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+                    button.disabled = false;
+                }
+            }, 2000);
+        }
+    }
+    </script>
+</body>
+</html>
