@@ -5,6 +5,8 @@ A web application that summarizes text documents using natural language processi
 ## Features
 
 - Text summarization
+- Text summarization of various languages (Spanish, French, German, Italian, portuguese, russian, arabic, hindi, bengali, chinese, japanese, korean.)
+- Listen to summary
 - File upload support (TXT, PDF, DOCX)
 - Voice input with automatic punctuation
 - Export summaries as DOCX
@@ -78,6 +80,12 @@ For development, you can mount the source code as a volume:
 ```bash
 docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
+
+## 👨‍💻 Author
+
+**Jyothula Bhaskar**  
+B.Tech in Computer Science & Engineering (AI & ML)  
+[LinkedIn](https://www.linkedin.com/in/bhaskar-jyothula-974bbb271/) | [Hugging Face](https://huggingface.co/Bhaskar2611) | [GitHub](https://github.com/Bhaskar2603) | [Kaggle](https://www.kaggle.com/bhaskarjyothula)
 
 ## License
 
